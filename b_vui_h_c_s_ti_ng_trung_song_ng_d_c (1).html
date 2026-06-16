@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Bé Vui Học Số 9x16</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&display=swap');
+        body { 
+            font-family: 'Fredoka One', cursive; 
+            background: linear-gradient(180deg, #f0f9ff 0%, #bae6fd 100%); 
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0;
+            overflow: hidden;
+        }
+        #game-container {
+            width: 100%;
+            max-width: 400px;
+            height: 100%;
+            max-height: 800px;
+            display: flex;
+            flex-direction: column;
+        }
+        .game-card { transition: all 0.3s ease; }
+        .correct-animation { animation: bounce 0.5s ease; border-color: #22c55e !important; background: #dcfce7 !important; }
+        .wrong-animation { animation: shake 0.4s ease; border-color: #ef4444 !important; background: #fee2e2 !important; }
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-10px); } 75% { transform: translateX(10px); } }
+        .fade-in { animation: fadeIn 0.5s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+
+    <!-- Music Toggle -->
+    <button id="music-toggle" onclick="toggleMusic()" class="fixed top-6 right-6 bg-sky-500 text-white p-4 rounded-full shadow-lg z-50">
+        🎵
+    </button>
+
+    <div id="game-container" class="bg-white/90 shadow-2xl p-6 flex flex-col justify-center items-center">
+        
+        <!-- Start Screen -->
+        <div id="start-screen" class="space-y-8 text-center fade-in">
+            <h1 class="text-5xl text-sky-600">🌈 Bé Vui Học Số</h1>
+            <p class="text-xl text-gray-600">Học đếm 1, 2, 3 bằng Tiếng Việt và Tiếng Trung!</p>
+            <button onclick="startGame()" class="w-full bg-yellow-400 hover:bg-yellow-500 text-white text-3xl py-6 rounded-3xl shadow-xl transition-transform hover:scale-105">
+                Chơi ngay! 🚀
+            </button>
+        </div>
+
+        <!-- Game Screen -->
+        <div id="game-screen" class="hidden w-full flex-grow flex flex-col justify-between py-4 fade-in">
+            <div class="text-center">
+                <span id="score-text" class="text-xl text-sky-600">Câu hỏi: 1/5</span>
+            </div>
+            
+            <div id="question-area" class="bg-sky-50 p-8 rounded-3xl border-4 border-dashed border-sky-200 text-center mx-2">
+                <h2 class="text-2xl text-gray-700 mb-6">Chọn số đúng nhé:</h2>
+                <div id="visual-cue" class="text-8xl my-6 min-h-[120px]"></div>
+                <button onclick="speakCurrentNumber()" class="bg-white px-6 py-3 rounded-full text-lg text-sky-500 border border-sky-300 shadow-md">
+                    🔊 Nghe phát âm
+                </button>
+            </div>
+
+            <div id="options-grid" class="grid grid-cols-1 gap-4 w-full px-2"></div>
+            <div id="feedback-text" class="text-center text-2xl font-bold text-gray-700 h-10"></div>
+        </div>
+
+        <!-- Finish Screen -->
+        <div id="finish-screen" class="hidden text-center space-y-8 fade-in">
+            <h2 class="text-5xl text-green-500">🎉 Tuyệt vời!</h2>
+            <p class="text-2xl">Bé đã học rất giỏi!</p>
+            <button onclick="location.reload()" class="w-full bg-sky-500 text-white py-6 rounded-3xl text-2xl shadow-lg">Chơi lại</button>
+        </div>
+    </div>
+
+    <script>
+        const numbers = [
+            { id: 1, vi: 'Một', zh: '一', pinyin: 'yī', emoji: '🍎' },
+            { id: 2, vi: 'Hai', zh: '二', pinyin: 'èr', emoji: '🎈' },
+            { id: 3, vi: 'Ba', zh: '三', pinyin: 'sān', emoji: '🌟' }
+        ];
+
+        let state = { currentQuestion: 0, totalQuestions: 5, currentNum: null, isPlayingMusic: false };
+        let audioCtx, musicLoop;
+
+        function initAudio() { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+
+        function playMusic() {
+            initAudio();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(330, audioCtx.currentTime);
+            gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.3);
+            musicLoop = setTimeout(playMusic, 800);
+        }
+
+        function toggleMusic() {
+            state.isPlayingMusic = !state.isPlayingMusic;
+            if (state.isPlayingMusic) { playMusic(); } else { clearTimeout(musicLoop); }
+        }
+
+        function speak(text, lang) {
+            window.speechSynthesis.cancel();
+            const msg = new SpeechSynthesisUtterance(text);
+            msg.lang = lang;
+            window.speechSynthesis.speak(msg);
+        }
+
+        function speakCurrentNumber() {
+            speak(`${state.currentNum.vi}`, 'vi-VN');
+            setTimeout(() => speak(`${state.currentNum.zh}`, 'zh-CN'), 1000);
+        }
+
+        function startGame() {
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('game-screen').classList.remove('hidden');
+            nextQuestion();
+        }
+
+        function nextQuestion() {
+            if (state.currentQuestion >= state.totalQuestions) {
+                document.getElementById('game-screen').classList.add('hidden');
+                document.getElementById('finish-screen').classList.remove('hidden');
+                return;
+            }
+            state.currentNum = numbers[Math.floor(Math.random() * numbers.length)];
+            state.currentQuestion++;
+            document.getElementById('score-text').innerText = `Câu hỏi: ${state.currentQuestion}/${state.totalQuestions}`;
+            document.getElementById('visual-cue').innerHTML = Array(state.currentNum.id).fill(state.currentNum.emoji).join(' ');
+            renderOptions();
+        }
+
+        function renderOptions() {
+            const grid = document.getElementById('options-grid');
+            grid.innerHTML = '';
+            numbers.forEach(num => {
+                const btn = document.createElement('button');
+                btn.className = "bg-white border-4 border-sky-200 p-6 rounded-3xl flex items-center justify-between shadow-md active:scale-95 transition-all";
+                btn.innerHTML = `<span class="text-5xl">${num.zh}</span><span class="text-2xl text-gray-600">${num.vi}</span>`;
+                btn.onclick = () => checkAnswer(num.id, btn);
+                grid.appendChild(btn);
+            });
+        }
+
+        function checkAnswer(id, btn) {
+            const feedback = document.getElementById('feedback-text');
+            if (id === state.currentNum.id) {
+                btn.classList.add('correct-animation');
+                feedback.innerText = "Giỏi lắm! 太棒了!";
+                setTimeout(nextQuestion, 1200);
+            } else {
+                btn.classList.add('wrong-animation');
+                feedback.innerText = "Thử lại nhé!";
+                setTimeout(() => btn.classList.remove('wrong-animation'), 500);
+            }
+        }
+    </script>
+</body>
+</html>
